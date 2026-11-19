@@ -1,0 +1,6 @@
+# API Key
+.env
+
+# Python 暫存檔案
+__pycache__/
+*.pyc
