@@ -1,0 +1,107 @@
+import requests
+import json
+import sys
+import os
+import time
+
+from pathlib import Path
+from dotenv import load_dotenv
+
+
+# ========================================
+# 1. 基本設定
+# ========================================
+
+# 設定終端機 UTF-8 編碼
+sys.stdout.reconfigure(encoding="utf-8")
+
+# 讀取 .env 檔案
+env_path = Path(__file__).resolve().parent / "APIKEY.env"
+load_dotenv(dotenv_path=env_path)
+
+# NVIDIA API 設定
+API_URL = "https://integrate.api.nvidia.com/v1/chat/completions"
+MODEL = "minimaxai/minimax-m3.1-flash"
+
+
+# ========================================
+# 2. API 呼叫函式
+# ========================================
+
+def call_model(messages):
+
+    # 從 .env 取得 API Key
+    api_key = os.getenv("NVIDIA_API_KEY")
+
+    if not api_key:
+        print("Error: 找不到 NVIDIA_API_KEY")
+        print("請檢查 .env 檔案是否存在及內容是否正確。")
+        return None
+
+    try:
+        # 發送 API 請求
+        start_time = time.time()
+        
+        resp = requests.post(
+            API_URL,
+            headers={
+                "Authorization": f"Bearer {api_key}",
+                "Content-Type": "application/json",
+            },
+            json={
+                "model": MODEL,
+                "messages": messages,
+                "max_tokens": 512,
+                "temperature": 1,
+                "top_p": 0.95,
+            },
+            timeout=(10, 180),
+        )
+        print("執行時間：", round(time.time() - start_time, 2), "秒")
+        print("Status:", resp.status_code)
+
+        # 解析 JSON
+        try:
+            data = resp.json()
+
+        except ValueError:
+            print("無法解析 JSON：")
+            print(resp.text)
+            return None
+
+        # 判斷 API 是否成功
+        if resp.ok:
+
+            content = data["choices"][0]["message"]["content"]
+
+            print("\n========== AI Reply ==========\n")
+            print(content)
+            print("\n==============================")
+
+        else:
+            print("\n========== API Error ==========\n")
+            print(json.dumps(data, ensure_ascii=False, indent=2))
+            print("\n==============================")
+
+        return data
+
+    except requests.exceptions.RequestException as e:
+        print("Connection Error:", e)
+        return None
+
+    except (KeyError, IndexError, TypeError) as e:
+        print("Response Format Error:", e)
+        return None
+
+
+# ========================================
+# 3. 主程式
+# ========================================
+
+if __name__ == "__main__":
+
+    messages = [
+        {"role": "user", "content": "今天星期幾"}
+    ]
+
+    call_model(messages)
